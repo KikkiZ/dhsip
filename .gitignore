@@ -1,3 +1,8 @@
+/test
+/.idea
+
+/data/denoising.mat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
