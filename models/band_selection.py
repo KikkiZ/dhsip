@@ -1,7 +1,7 @@
 import torch
 
 
-def structure_info(data: torch.Tensor):
+def structure_info(data: torch.Tensor) -> torch.Tensor:
     """ 计算一组图像间的结构相似度
     默认输入的图像为(C,W,H), 通过拉普拉斯矩阵计算
     该组图像的结构相似度, 并返回一张二维矩阵,行号和
@@ -14,8 +14,17 @@ def structure_info(data: torch.Tensor):
         band = data.shape[0]
         laplace = laplace_matrix(data)
 
+        structural_similarity = torch.zeros(band, band)
+        for i in range(band):
+            for j in range(i + 1, band):
+                # @ 为矩阵乘
+                i = laplace[i] @ laplace[j] - laplace[j] @ laplace[i]
+                structural_similarity[i][j] = torch.norm(i).item() ** 2
+
+        return structural_similarity
+
     else:
-        assert False
+        raise ValueError('The input tensor dimension is incorrect')
 
 
 _sigma_s = 0.5
@@ -62,7 +71,7 @@ def adjacent_matrix(data: torch.Tensor) -> torch.Tensor:
         pixel_diff = -(pixel_diff ** 2) / (2 * (_sigma_r ** 2))
 
     else:
-        assert False
+        raise ValueError('The input tensor dimension is incorrect')
 
     return torch.exp(delta) * torch.exp(pixel_diff)
 
@@ -83,7 +92,7 @@ def diag_matrix(data: torch.Tensor) -> torch.Tensor:
     elif len(data.shape) == 3:
         _, width, height = data.shape
     else:
-        assert False
+        raise ValueError('The input tensor dimension is incorrect')
 
     maps = torch.ones(1, width, height).cuda()
     diag = torch.nn.functional.conv2d(maps, kernel, stride=1, padding=1)
@@ -114,6 +123,6 @@ def laplace_matrix(data: torch.Tensor) -> torch.Tensor:
         adjacent = adjacent_matrix(data)
 
     else:
-        assert False
+        raise ValueError('The input tensor dimension is incorrect')
 
     return diag - adjacent  # 返回拉普拉斯矩阵
