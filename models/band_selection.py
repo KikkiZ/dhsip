@@ -1,15 +1,16 @@
 import math
 
+import numpy
 import torch
 
 
-def band_recombination(data: torch.Tensor):
+def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.Tensor]]:
     """ 将一张高光谱图像按结构相似度进行分组
     输入一张高光谱图像, 图像结构为(C,W,H),
     通过计算出的结构相似度, 将光谱图像按相似度重组
 
     :param data: 需要重组的高光谱图像
-    :return: 返回重组完的图像
+    :return: 返回分组信息和重组完的图像
     """
     if len(data.shape) != 3:
         raise ValueError('The input tensor dimension is incorrect')
@@ -41,9 +42,49 @@ def band_recombination(data: torch.Tensor):
         similarity = torch.stack(similarity, dim=0)  # 将分组的相似度合并, 通道数为分组数量
         similarity = torch.sum(similarity, dim=0)    # 将相似度数据叠加, 减少通道数
 
-    # TODO 波段重组
+    similarity = similarity.cpu().numpy()
+    similarity[similarity == 0] = numpy.inf
 
-    return similarity
+    def _check(check: numpy.ndarray, idx: int):
+        return True if numpy.min(check) != numpy.inf and idx < band else False
+
+    index = 0
+    group_size = 3
+    group = []
+    while _check(similarity, index):
+        # 检查当前行是否已被分配
+        arr = similarity[index]
+        if numpy.all(numpy.isinf(arr)):
+            index += 1
+            continue
+
+        # 检查当前未分配的波段数量
+        non_inf_count = numpy.sum(~numpy.isinf(arr))
+        if non_inf_count == 3:
+            group_size = 4
+
+        # 筛选剩余波段中最匹配的波段, 处理分配信息
+        indices = numpy.argpartition(arr, group_size - 1)[: group_size - 1]
+        similarity[:, indices] = numpy.inf
+        similarity[indices, :] = numpy.inf
+
+        indices = indices.tolist()
+        indices.extend([index])
+        index += 1
+
+        group.append(indices)
+
+    recombination_image = []
+    for indices in group:
+        image = torch.index_select(data, 0, torch.tensor(indices).cuda())
+        recombination_image.append(image)
+
+    return group, recombination_image
+
+
+# TODO 恢复原始图像
+def band_recovery(group: list[list[int]], data: list[torch.Tensor]) -> torch.Tensor:
+    pass
 
 
 def structure_info(data: torch.Tensor) -> torch.Tensor:
