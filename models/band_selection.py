@@ -35,41 +35,47 @@ def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.
 
         # 计算结构相似度
         similarity = []
-        for block in blocks:
+        for index, block in enumerate(blocks):
+            print('[', index + 1, '/', len(blocks), ']')
             info = structure_info(block)
             similarity.append(info)
 
         similarity = torch.stack(similarity, dim=0)  # 将分组的相似度合并, 通道数为分组数量
-        similarity = torch.sum(similarity, dim=0)    # 将相似度数据叠加, 减少通道数
+        similarity = torch.sum(similarity, dim=0)  # 将相似度数据叠加, 减少通道数
 
     similarity = similarity.cpu().numpy()
     similarity[similarity == 0] = numpy.inf
-
-    def _check(check: numpy.ndarray, idx: int):
-        return True if numpy.min(check) != numpy.inf and idx < band else False
+    numpy.savetxt('../test/similarity.txt', similarity)
 
     index = 0
-    group_size = 3
     group = []
-    while _check(similarity, index):
+    group_size = 3
+
+    loop_count = 1
+    loop_num = round(band / group_size)
+    while loop_count <= loop_num:
         # 检查当前行是否已被分配
         arr = similarity[index]
         if numpy.all(numpy.isinf(arr)):
             index += 1
             continue
 
-        # 检查当前未分配的波段数量
-        non_inf_count = numpy.sum(~numpy.isinf(arr))
-        if non_inf_count == 3:
-            group_size = 4
+        # 调整最后一组数据的大小
+        if loop_count == loop_num:
+            if band % group_size == 1:
+                group_size = 4
+            elif band % group_size == 2:
+                group_size = 2
 
         # 筛选剩余波段中最匹配的波段, 处理分配信息
         indices = numpy.argpartition(arr, group_size - 1)[: group_size - 1]
-        similarity[:, indices] = numpy.inf
-        similarity[indices, :] = numpy.inf
+        similarity[:, indices] = numpy.inf  # 纵向清空结构相似性数据
+        similarity[indices, :] = numpy.inf  # 横向清空结构相似性数据
+        similarity[index, :] = numpy.inf
 
         indices = indices.tolist()
         indices.extend([index])
+        loop_count += 1
         index += 1
 
         group.append(indices)
@@ -82,9 +88,24 @@ def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.
     return group, recombination_image
 
 
-# TODO 恢复原始图像
 def band_recovery(group: list[list[int]], data: list[torch.Tensor]) -> torch.Tensor:
-    pass
+    """ 根据分组信息恢复原始图像
+    默认data中的所有张量具有相同的大小(通道数可以不同),
+    group中的元素数量与与data中的通道数相同
+
+    :param group: 图像的分组信息
+    :param data: 分组的图像
+    :return： 返回重组完成的图像
+    """
+    _, width, height = data[0].shape
+
+    channel = sum([len(item) for item in group])
+    recover_data = torch.zeros([channel, width, height])
+    for indices, image in zip(group, data):
+        for index, origin_index in enumerate(indices):
+            recover_data[origin_index] = image[index]
+
+    return recover_data
 
 
 def structure_info(data: torch.Tensor) -> torch.Tensor:
@@ -102,11 +123,11 @@ def structure_info(data: torch.Tensor) -> torch.Tensor:
         laplace = laplace_matrix(data)
 
         # 由于直接计算内存占用过高, 需要按批次计算
-        batch_size = 3000                                   # 每一批的大小
-        num_batch = math.ceil(band ** 2 / batch_size)       # 分批计算的总批次
+        batch_size = 3000  # 每一批的大小
+        num_batch = math.ceil(band ** 2 / batch_size)  # 分批计算的总批次
         indices = torch.triu_indices(band, band, offset=1)  # 生成上三角矩阵的索引, 共两个列表, 分别存有x和y轴
-        indices_x = indices[0]                              # 获取需要进行计算的第一个张量的索引列表
-        indices_y = indices[1]                              # 获取第二个张量的索引列表
+        indices_x = indices[0]  # 获取需要进行计算的第一个张量的索引列表
+        indices_y = indices[1]  # 获取第二个张量的索引列表
 
         structural_similarity = []
         for batch in range(num_batch):
