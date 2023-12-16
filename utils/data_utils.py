@@ -1,4 +1,7 @@
+from typing import Iterable
+
 import torch
+from matplotlib import pyplot as plt
 
 
 def _tensor_repeat(inputs, x, y):
@@ -61,3 +64,34 @@ def psnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
 
     err = torch.mean((original - compressed) ** 2)  # 均方误差
     return (10 * torch.log10(1 / err)).item()
+
+
+def print_image(images: list[torch.Tensor],
+                bands: list[int] = None,
+                title: str = None):
+    """ 输出一组任意长度的(高光谱)图像
+
+    :param images: 需要输出的一组图像
+    :param title: 图像的标题
+    :param bands: 输出图像的波段
+    """
+    if bands is None:
+        bands = [56, 26, 16]
+
+    f, axs = plt.subplots(nrows=1,
+                          ncols=len(images),
+                          sharey=True,
+                          figsize=(5 if len(images) == 1 else 4 * len(images), 5))
+
+    if title is not None:
+        f.suptitle(title)
+
+    if isinstance(axs, Iterable):
+        for index, ax in enumerate(axs):
+            var = images[index]
+            ax.imshow(torch.stack((var[bands[0], :, :], var[bands[1], :, :], var[bands[2], :, :]), 2).cpu())
+    else:
+        var = images[0]
+        axs.imshow(torch.stack((var[bands[0], :, :], var[bands[1], :, :], var[bands[2], :, :]), 2).cpu())
+
+    plt.show()

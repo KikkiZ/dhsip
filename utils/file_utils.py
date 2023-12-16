@@ -19,7 +19,7 @@ def read_data(file_dir: str) -> Dict[str, torch.Tensor]:
     data = dict()
     for key in mat.keys():
         if not key.startswith('__') and not key.endswith('__'):
-            data[key] = torch.from_numpy(mat[key])
+            data[key] = torch.from_numpy(mat[key]).type(torch.float32)
 
     return data
 
@@ -32,6 +32,6 @@ def save_data(file_dir: str, data: Dict[str, torch.Tensor]):
     """
     for key in data.keys():
         if data[key].is_cuda:
-            data[key] = data[key].cpu().detach().numpy()
+            data[key] = data[key].cpu().detach_().numpy()
 
     sio.savemat(file_dir, data)

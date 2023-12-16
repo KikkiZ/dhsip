@@ -14,7 +14,7 @@
 
 ### 数据准备
 
-* 测试主要使用了`191 Band Hyperspectral Image: HYDICE image of Washington DC Mall`，你可以在[这里](https://engineering.purdue.edu/~biehl/MultiSpec/hyperspectral.html)获得获得公开的数据集.
+* 测试主要使用了`191 Band Hyperspectral Image: HYDICE image of Washington DC Mall`，你可以在 https://engineering.purdue.edu/~biehl/MultiSpec/hyperspectral.html 获得获得公开的数据集.
 * 在`/data/data_process.py`中准备了一些数据处理的函数，你可以自由的调用这些函数，以生成适合模型的数据. 这些函数已经写了详细的文档注释，可以通过这些注释了解使用方法.
 
 ## 致谢
