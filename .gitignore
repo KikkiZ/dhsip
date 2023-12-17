@@ -2,6 +2,7 @@
 /.idea
 
 /data/*.mat
+/data/*.pth
 
 /logs
 

@@ -40,6 +40,21 @@ def min_max_normalize(inputs: torch.Tensor) -> torch.Tensor:
     return (inputs - min_tensor) / (max_tensor - min_tensor)
 
 
+def add_white_noise(inputs: torch.Tensor, noise_level: int) -> torch.Tensor:
+    """ 给图像添加高斯白噪声
+
+    :param inputs: 需要添加噪声的图像
+    :param noise_level: 噪声水平
+    :return: 返回添加了噪声的图像
+    """
+    white_noise = torch.randn(inputs.shape) * (noise_level / 255)
+
+    image_noise = inputs + white_noise
+    image_noise = torch.clamp(image_noise, 0, 1)
+
+    return image_noise
+
+
 def psnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
     """ 峰值信噪比
     使用torch重写, 用于快速计算psnr

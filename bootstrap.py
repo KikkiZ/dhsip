@@ -1,13 +1,11 @@
 import argparse
 
-import torch
-
 import denoising_2d
 import denoising_band
 import denoising_red
 from models.band_selection import band_recombination
 from utils.data_utils import print_image
-from utils.file_utils import read_data, save_data
+from utils.file_utils import read_data
 
 
 def parse_args():
@@ -34,7 +32,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     # 读取需要降噪的数据
-    file_name = './data/denoising.mat'
+    file_name = './data/denoising.pth'
     data_dict = read_data(file_name)
     image = data_dict['image'].cuda()
     decrease_image = data_dict['image_noisy'].cuda()
