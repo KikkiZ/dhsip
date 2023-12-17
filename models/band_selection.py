@@ -4,12 +4,14 @@ import numpy
 import torch
 
 
-def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.Tensor]]:
+def band_recombination(data: torch.Tensor,
+                       group_size: int = 3) -> tuple[list[list[int]], list[torch.Tensor]]:
     """ 将一张高光谱图像按结构相似度进行分组
     输入一张高光谱图像, 图像结构为(C,W,H),
     通过计算出的结构相似度, 将光谱图像按相似度重组
 
     :param data: 需要重组的高光谱图像
+    :param group_size: 重组的图像的大小
     :return: 返回分组信息和重组完的图像
     """
     if len(data.shape) != 3:
@@ -45,11 +47,9 @@ def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.
 
     similarity = similarity.cpu().numpy()
     similarity[similarity == 0] = numpy.inf
-    numpy.savetxt('../test/similarity.txt', similarity)
 
     index = 0
     group = []
-    group_size = 3
 
     loop_count = 1
     loop_num = round(band / group_size)
@@ -62,10 +62,8 @@ def band_recombination(data: torch.Tensor) -> tuple[list[list[int]], list[torch.
 
         # 调整最后一组数据的大小
         if loop_count == loop_num:
-            if band % group_size == 1:
-                group_size = 4
-            elif band % group_size == 2:
-                group_size = 2
+            group_size = band - (loop_count - 1) * group_size
+            print('group size: ', group_size)
 
         # 筛选剩余波段中最匹配的波段, 处理分配信息
         indices = numpy.argpartition(arr, group_size - 1)[: group_size - 1]

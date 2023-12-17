@@ -1,11 +1,13 @@
 import argparse
 
+import torch
+
 import denoising_2d
 import denoising_band
 import denoising_red
 from models.band_selection import band_recombination
 from utils.data_utils import print_image
-from utils.file_utils import read_data
+from utils.file_utils import read_data, save_data
 
 
 def parse_args():
@@ -37,6 +39,7 @@ if __name__ == '__main__':
     image = data_dict['image'].cuda()
     decrease_image = data_dict['image_noisy'].cuda()
     print_image([image, decrease_image], title='origin image')
+    print(decrease_image.shape)
 
     if args.net == '2d':
         denoising_2d.func(args, image, decrease_image)
@@ -45,7 +48,8 @@ if __name__ == '__main__':
         denoising_red.func(args, image, decrease_image)
 
     elif args.net == 'band':
-        group, recombination_image = band_recombination(decrease_image)  # 将图像按结构相似度分组
+        group, recombination_image = band_recombination(decrease_image, group_size=5)  # 将图像按结构相似度分组
+
         denoising_band.func(args, image, recombination_image, group)
 
     else:
