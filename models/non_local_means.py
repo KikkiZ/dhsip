@@ -4,7 +4,6 @@ from skimage.restoration import denoise_nl_means
 
 
 has_cuda = torch.cuda.is_available()
-print('has cuda: ', has_cuda)
 
 
 def non_local_means(image: torch.Tensor, sigma, fast_mode=True) -> torch.Tensor:

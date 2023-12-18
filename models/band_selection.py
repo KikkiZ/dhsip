@@ -35,10 +35,12 @@ def band_recombination(data: torch.Tensor,
             col_blocks = torch.chunk(row_block, num_col, dim=2)
             blocks.extend(col_blocks)
 
+        print('total number of blocks: ', len(blocks))
+
         # 计算结构相似度
         similarity = []
         for index, block in enumerate(blocks):
-            print('[', index + 1, '/', len(blocks), ']')
+            print('processing progress: [', index + 1, '/', len(blocks), ']')
             info = structure_info(block)
             similarity.append(info)
 
