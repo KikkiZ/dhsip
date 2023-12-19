@@ -81,6 +81,19 @@ def psnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
     return (10 * torch.log10(1 / err)).item()
 
 
+def mpsnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
+    """ 平均峰值信噪比
+    使用torch重写, 用于快速计算mpsnr
+
+    :param original: 原始图像
+    :param compressed: 比较图像
+    :return: 返回两张图像的mpsnr
+    """
+    err = torch.mean((original - compressed) ** 2, dim=[1, 2])
+    err = 10 * torch.log10(1 / err)
+    return torch.mean(err).item()
+
+
 def print_image(images: list[torch.Tensor],
                 bands: list[int] = None,
                 title: str = None):
