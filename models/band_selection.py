@@ -65,7 +65,6 @@ def band_recombination(data: torch.Tensor,
         # 调整最后一组数据的大小
         if loop_count == loop_num:
             group_size = band - (loop_count - 1) * group_size
-            print('group size: ', group_size)
 
         # 筛选剩余波段中最匹配的波段, 处理分配信息
         indices = numpy.argpartition(arr, group_size - 1)[: group_size - 1]

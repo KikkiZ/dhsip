@@ -6,14 +6,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 import deep_hsi_prior
 from models.band_selection import band_recombination, band_recovery
-from utils.data_utils import print_image
-from utils.file_utils import read_data, save_data
+from utils.data_utils import print_image, min_max_normalize
+from utils.file_utils import read_data
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='deep_hs_prior')
 
-    # TODO 删除不必要的参数
     parser.add_argument('--net', dest='net', default='default', type=str)
     parser.add_argument('--num_iter', dest='num_iter', default=3000, type=int)
     parser.add_argument('--reg_noise_std', dest='reg_noise_std', default=0.03, type=float)
@@ -25,6 +24,7 @@ def parse_args():
     parser.add_argument('--down_channel', dest='down_channel', nargs='+', default=[128, 128, 128, 128, 128], type=int)
     parser.add_argument('--upsample_mode', dest='upsample_mode', default='bilinear', type=str)
     parser.add_argument('--downsample_mode', dest='downsample_mode', default='stride', type=str)
+    parser.add_argument('--group_size', dest='group_size', default=5, type=int)
 
     return parser.parse_args()
 
@@ -34,28 +34,28 @@ if __name__ == '__main__':
     args = parse_args()
 
     # 读取需要降噪的数据
-    file_name = './data/denoising.pth'
+    file_name = './data/data.pth'
     data_dict = read_data(file_name)
     image = data_dict['image'].cuda()
-    decrease_image = data_dict['image_noisy'].cuda()
+    decrease_image = data_dict['multi_noise_image'].cuda()
     print_image([image, decrease_image], title='origin image')
 
     if args.net == 'base':
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
         writer = SummaryWriter('./logs/denoising/' + date)
 
-        output, _ = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
+        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
         writer.close()
 
     elif args.net == 'red':
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
         writer = SummaryWriter('./logs/denoising_red/' + date)
 
-        output, _ = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
+        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
         writer.close()
 
     elif args.net == 'band':
-        group, recombination_image = band_recombination(decrease_image, group_size=5)  # 将图像按结构相似度分组
+        group, recombination_image = band_recombination(decrease_image, group_size=args.group_size)  # 将图像按结构相似度分组
         print(group)
 
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         output = []
         output_avg = []
         for index, (image_indices, decrease_subimage) in enumerate(zip(group, recombination_image)):
-            print('epoch: [' + str(index + 1) + '/' + str(len(group)) + ']')
+            print('group: [' + str(index + 1) + '/' + str(len(group)) + ']')
 
             date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
             writer = SummaryWriter(log_dir + date)
@@ -78,9 +78,10 @@ if __name__ == '__main__':
 
         output = band_recovery(group, output).cuda()
         output_avg = band_recovery(group, output_avg).cuda()
-        print_image([output.detach()])
-        save_data('./data/output.pth',
-                  {'output': output.detach_().clone(), 'output_avg': output_avg.detach_().clone()})
 
     else:
         raise ValueError('The input parameter is incorrect, you need to choose between base, red and band')
+
+    output = min_max_normalize(output.detach())
+    output_avg = min_max_normalize(output_avg.detach())
+    print_image([output, output_avg])

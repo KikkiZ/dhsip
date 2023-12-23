@@ -33,7 +33,7 @@ def func(args,
                image.shape[0],
                num_channels_up=args.up_channel,
                num_channels_down=args.down_channel,
-               num_channel_skip=args.skip_channel,
+               num_channel_skip=image.shape[0],
                kernel_size_up=3,
                kernel_size_down=3,
                kernel_size_skip=3,
@@ -78,6 +78,7 @@ def func(args,
 
         inputs = net_input + (noise.normal_() * reg_noise_std)  # 扰动每一轮的网络输入噪声
         out = net(inputs)
+        out = min_max_normalize(out.squeeze())[None, :]
 
         if mode == 'base':
             total_loss = criterion(out, decrease_image)
@@ -100,10 +101,10 @@ def func(args,
         if i % 25 == 0 and mode == 'red':
             temp_benchmark = non_local_means(benchmark_image.clone().squeeze(), 3)
 
-            # msg = 'benchmark: [' + str(i) + '/' + str(num_iter) + ']'
-            # benchmark_image_normalize = min_max_normalize(benchmark_image.squeeze().detach())
-            # lagrange_multiplier_normalize = min_max_normalize(lagrange_multiplier.squeeze().detach())
-            # print_image([benchmark_image_normalize, lagrange_multiplier_normalize], title=msg)
+            msg = 'benchmark: [' + str(i) + '/' + str(num_iter) + ']'
+            benchmark_image_normalize = min_max_normalize(benchmark_image.squeeze().detach())
+            lagrange_multiplier_normalize = min_max_normalize(lagrange_multiplier.squeeze().detach())
+            print_image([benchmark_image_normalize, lagrange_multiplier_normalize], title=msg)
 
         if out_avg is None:
             out_avg = out.detach()
@@ -116,20 +117,20 @@ def func(args,
             psnr_gt = psnr(image, out.squeeze())
             psnr_gt_sm = psnr(image, out_avg.squeeze())
 
-            writer.add_scalar('compare with de', psnr_noisy, i)
-            writer.add_scalar('compare with gt', psnr_gt, i)
-            writer.add_scalar('compare with gt_sm', psnr_gt_sm, i)
+            writer.add_scalar('cmp with de', psnr_noisy, i)
+            writer.add_scalar('cmp with gt', psnr_gt, i)
+            writer.add_scalar('cmp with gt_sm', psnr_gt_sm, i)
 
         if i % show_every == 0:
             msg = 'iteration times: [' + str(i) + '/' + str(num_iter) + ']'
             print(msg)
 
-            if out.shape[0] > 100:
+            if args.net != 'band':
                 out_normalize = min_max_normalize(out.squeeze().detach())
                 out_avg_normalize = min_max_normalize(out_avg.squeeze().detach())
                 print_image([out_normalize, out_avg_normalize], title=msg)
 
     end_time = time.time()
-    print('cost time', end_time - start_time, 's')
+    print('cost time: ', end_time - start_time, 's')
 
     return out.squeeze(), out_avg.squeeze()
