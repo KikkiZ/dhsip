@@ -1,4 +1,5 @@
-from typing import Iterable
+import random
+from typing import Iterable, Dict
 
 import torch
 from matplotlib import pyplot as plt
@@ -53,6 +54,38 @@ def add_white_noise(inputs: torch.Tensor, noise_level: int) -> torch.Tensor:
     image_noise = torch.clamp(image_noise, 0, 1)
 
     return image_noise
+
+
+def add_white_noise_by_band(inputs: torch.Tensor,
+                            noise_levels: Dict[int, float]) -> torch.Tensor:
+    """ 给图像添加不同水平的高斯白噪声
+
+    :param inputs: 需要添加噪声的图像
+    :param noise_levels: 噪声水平以及对应等级出现的概率
+    :return: 返回添加了噪声的图像
+    """
+    if sum(noise_levels.values()) != 1:
+        raise ValueError('The sum of noise levels probabilities is not one')
+
+    if len(inputs.shape) != 3:
+        raise ValueError('The input tensor dimension must be 3')
+
+    output = inputs.detach().clone()
+    channel, width, height = output.shape
+    band_count = [round(channel * temp) for temp in noise_levels.values()]
+    rand_list = random.sample(range(0, channel), channel)
+
+    for index, level in enumerate(noise_levels.keys()):
+        band_list = rand_list[:band_count[index]]
+        rand_list = rand_list[band_count[index]:]
+
+        for band in band_list:
+            white_noise = torch.randn(width, height) * (level / 255)
+
+            output[band] = output[band] + white_noise
+            output[band] = torch.clamp(output[band], 0, 1)
+
+    return output
 
 
 def psnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
