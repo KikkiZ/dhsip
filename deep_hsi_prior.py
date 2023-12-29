@@ -6,18 +6,19 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from models.non_local_means import non_local_means
-from models.unet2D import UNet
 from utils.data_utils import min_max_normalize, print_image, psnr
 from utils.model_utils import noise_generator
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 data_type = torch.cuda.FloatTensor
+device = torch.device('cuda')
 
 
 def func(args,
          image: torch.Tensor,
          decrease_image: torch.Tensor,
+         net: torch.nn.Module,
          mode: str = 'base',
          writer: SummaryWriter = None) -> Tuple[torch.Tensor, torch.Tensor]:
 
@@ -29,21 +30,7 @@ def func(args,
     mu = 0.5                            # ADMM参数，希腊字母μ
     beta = 0.5                          # 正则化参数
 
-    net = UNet(image.shape[0],
-               image.shape[0],
-               num_channels_up=args.up_channel,
-               num_channels_down=args.down_channel,
-               num_channel_skip=image.shape[0],
-               kernel_size_up=3,
-               kernel_size_down=3,
-               kernel_size_skip=3,
-               upsample_mode=args.upsample_mode,
-               need1x1_up=False,
-               need_sigmoid=False,
-               need_bias=True,
-               pad='reflection',
-               activate='LeakyReLU').type(data_type)
-    device = torch.device('cuda')
+    net = net.type(data_type)
     net.to(device)
     print('module running in: ', device)
 
@@ -80,7 +67,7 @@ def func(args,
         out = net(inputs)
         out = min_max_normalize(out.squeeze())[None, :]
 
-        if mode == 'base':
+        if mode == 'base' or mode == 'res':
             total_loss = criterion(out, decrease_image)
         elif mode == 'red':
             temp = benchmark_image - lagrange_multiplier

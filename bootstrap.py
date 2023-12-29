@@ -6,6 +6,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import deep_hsi_prior
 from models.band_selection import band_recombination, band_recovery
+from models.resnet import ResNet
+from models.unet2D import UNet
 from utils.data_utils import print_image, min_max_normalize
 from utils.file_utils import read_data
 
@@ -29,6 +31,38 @@ def parse_args():
     return parser.parse_args()
 
 
+def net_generation(args, image):
+
+    if args.net in ['base', 'red', 'band']:
+        net = UNet(image.shape[0],
+                   image.shape[0],
+                   num_channels_up=args.up_channel,
+                   num_channels_down=args.down_channel,
+                   num_channel_skip=image.shape[0],
+                   kernel_size_up=3,
+                   kernel_size_down=3,
+                   kernel_size_skip=3,
+                   upsample_mode=args.upsample_mode,
+                   need1x1_up=False,
+                   need_sigmoid=False,
+                   need_bias=True,
+                   pad='reflection',
+                   activate='LeakyReLU')
+    elif args.net == 'res':
+        net = ResNet(image.shape[0],
+                     image.shape[0],
+                     num_channels_in=args.up_channel,
+                     num_channels_out=args.down_channel,
+                     kernel_size=3,
+                     activate='LeakyReLU',
+                     need_bias=True,
+                     pad='reflection')
+    else:
+        raise ValueError('The input parameter is incorrect, you need to choose between base, red and band')
+
+    return net
+
+
 if __name__ == '__main__':
 
     args = parse_args()
@@ -37,21 +71,31 @@ if __name__ == '__main__':
     file_name = './data/data.pth'
     data_dict = read_data(file_name)
     image = data_dict['image'].cuda()
-    decrease_image = data_dict['multi_noise_image'].cuda()
+    decrease_image = data_dict['noise_image'].cuda()
     print_image([image, decrease_image], title='origin image')
 
     if args.net == 'base':
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
         writer = SummaryWriter('./logs/denoising/' + date)
 
-        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
+        net = net_generation(args, image)
+        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, net, args.net, writer=writer)
         writer.close()
 
     elif args.net == 'red':
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
         writer = SummaryWriter('./logs/denoising_red/' + date)
 
-        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, args.net, writer=writer)
+        net = net_generation(args, image)
+        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, net, args.net, writer=writer)
+        writer.close()
+
+    elif args.net == 'res':
+        date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
+        writer = SummaryWriter('./logs/denoising_res/' + date)
+
+        net = net_generation(args, image)
+        output, output_avg = deep_hsi_prior.func(args, image, decrease_image, net, args.net, writer=writer)
         writer.close()
 
     elif args.net == 'band':
@@ -69,8 +113,9 @@ if __name__ == '__main__':
             date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
             writer = SummaryWriter(log_dir + date)
 
+            net = net_generation(args, decrease_subimage)
             origin_subimage = torch.index_select(image, dim=0, index=torch.tensor(image_indices).cuda())
-            out, out_avg = deep_hsi_prior.func(args, origin_subimage, decrease_subimage, mode='red', writer=writer)
+            out, out_avg = deep_hsi_prior.func(args, origin_subimage, decrease_subimage, net, mode='red', writer=writer)
             output.append(out)
             output_avg.append(out_avg)
 
