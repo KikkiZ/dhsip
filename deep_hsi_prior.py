@@ -21,6 +21,16 @@ def func(args,
          net: torch.nn.Module,
          mode: str = 'base',
          writer: SummaryWriter = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    """ 训练模型
+
+    :param args: 程序输入的参数
+    :param image: 干净图像
+    :param decrease_image:退化图像
+    :param net: 网络模型
+    :param mode: 网络运行的模式
+    :param writer: 网络数据记录
+    :return: 返回去噪图像和平滑后的去噪图像组成的元组
+    """
 
     reg_noise_std = args.reg_noise_std  # 扰动噪声张量的常量
     learning_rate = args.learning_rate  # 学习率
@@ -67,7 +77,7 @@ def func(args,
         out = net(inputs)
         out = min_max_normalize(out.squeeze())[None, :]
 
-        if mode == 'base' or mode == 'res':
+        if mode == 'base':
             total_loss = criterion(out, decrease_image)
         elif mode == 'red':
             temp = benchmark_image - lagrange_multiplier
@@ -112,7 +122,8 @@ def func(args,
             msg = 'iteration times: [' + str(i) + '/' + str(num_iter) + ']'
             print(msg)
 
-            if args.net != 'band':
+            # 只有当模式不为波段重组时才会输出图像
+            if args.mode != 'band':
                 out_normalize = min_max_normalize(out.squeeze().detach())
                 out_avg_normalize = min_max_normalize(out_avg.squeeze().detach())
                 print_image([out_normalize, out_avg_normalize], title=msg)
