@@ -1,7 +1,8 @@
 import torch
 
+from models.res_unet import ResUNet
 from models.resnet import ResNet
-from models.unet2D import UNet
+from models.unet import UNet
 
 
 def noise_generator(method, shape: list) -> torch.Tensor:
@@ -60,9 +61,22 @@ def model_build(args, image) -> torch.nn.Module:
                      activate='LeakyReLU',
                      need_bias=True,
                      pad='reflection')
-    # TODO 构建res-unet网络
+
+    elif args.net == 'res-unet':
+        net = ResUNet(image.shape[0],
+                      image.shape[0],
+                      num_channels_up=args.up_channel,
+                      num_channels_down=args.down_channel,
+                      num_channel_skip=image.shape[0],
+                      kernel_size_up=3,
+                      kernel_size_down=3,
+                      kernel_size_skip=3,
+                      upsample_mode=args.upsample_mode,
+                      need_bias=True,
+                      pad='reflection',
+                      activate='LeakyReLU')
 
     else:
-        raise ValueError('The input parameter is incorrect, you need to choose between unet, res and res-unet')
+        raise ValueError('The input parameter --net is incorrect, you need to choose between unet, res and res-unet')
 
     return net

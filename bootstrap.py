@@ -50,7 +50,7 @@ if __name__ == '__main__':
         output, output_avg = deep_hsi_prior.func(args, image, decrease_image, net, args.mode, writer=writer)
         writer.close()
 
-    elif args.net == 'band':
+    elif args.mode == 'band':
         group, recombination_image = band_recombination(decrease_image, group_size=args.group_size)  # 将图像按结构相似度分组
         print(group)
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         output_avg = band_recovery(group, output_avg).cuda()
 
     else:
-        raise ValueError('The input parameter is incorrect, you need to choose between base, red and band')
+        raise ValueError('The input parameter --mode is incorrect, you need to choose between base, red and band')
 
     output = min_max_normalize(output.detach())
     output_avg = min_max_normalize(output_avg.detach())
