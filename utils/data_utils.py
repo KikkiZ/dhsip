@@ -7,8 +7,7 @@ from matplotlib import pyplot as plt
 
 def _tensor_repeat(inputs, x, y):
     inputs = inputs.repeat(x, y, 1)
-    inputs = torch.transpose(inputs, 0, 2)
-    inputs = torch.transpose(inputs, 1, 2)
+    inputs = inputs.permute(2, 0, 1)
     return inputs
 
 
@@ -29,6 +28,9 @@ def min_max_normalize(inputs: torch.Tensor) -> torch.Tensor:
 
     else:
         raise ValueError('The input tensor dimension is incorrect')
+
+    if not inputs.is_floating_point():
+        inputs = inputs.to(torch.float)
 
     min_tensor = torch.min(inputs, dim=dim).values
     min_tensor = torch.min(min_tensor, dim=dim).values
