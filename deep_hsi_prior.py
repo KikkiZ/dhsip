@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from models.non_local_means import non_local_means
 from utils.data_utils import min_max_normalize, print_image, psnr
@@ -32,13 +33,13 @@ def func(args,
     :return: 返回去噪图像和平滑后的去噪图像组成的元组
     """
 
-    reg_noise_std = args.reg_noise_std  # 扰动噪声张量的常量
-    learning_rate = args.learning_rate  # 学习率
-    exp_weight = args.exp_weight        # 平滑参数, 将网络输出与过往输出值
-    show_every = args.show_every
-    num_iter = args.num_iter            # 模型迭代次数
-    mu = 0.5                            # ADMM参数，希腊字母μ
-    beta = 0.5                          # 正则化参数
+    reg_noise_std: float = args.reg_noise_std  # 扰动噪声张量的常量
+    learning_rate: float = args.learning_rate  # 学习率
+    exp_weight: float = args.exp_weight        # 平滑参数, 将网络输出与过往输出值
+    show_every: int = args.show_every
+    num_iter: int = args.num_iter              # 模型迭代次数
+    mu = 0.5                                   # ADMM参数，希腊字母μ
+    beta = 0.5                                 # 正则化参数
 
     net = net.type(data_type)
     net.to(device)
@@ -70,12 +71,11 @@ def func(args,
     # 运行基准函数, 更新基准值
     benchmark_image = non_local_means(benchmark_image.clone().squeeze(), 3)
 
-    for i in range(num_iter + 1):
+    for i in tqdm(range(1, num_iter + 1)):
         optimizer.zero_grad()  # 清空梯度
 
         inputs = net_input + (noise.normal_() * reg_noise_std)  # 扰动每一轮的网络输入噪声
         out = net(inputs)
-        out = min_max_normalize(out.squeeze())[None, :]
 
         if mode == 'base':
             total_loss = criterion(out, decrease_image)
@@ -98,10 +98,10 @@ def func(args,
         if i % 25 == 0 and mode == 'red':
             temp_benchmark = non_local_means(benchmark_image.clone().squeeze(), 3)
 
-            msg = 'benchmark: [' + str(i) + '/' + str(num_iter) + ']'
-            benchmark_image_normalize = min_max_normalize(benchmark_image.squeeze().detach())
-            lagrange_multiplier_normalize = min_max_normalize(lagrange_multiplier.squeeze().detach())
-            print_image([benchmark_image_normalize, lagrange_multiplier_normalize], title=msg)
+            # msg = 'benchmark: [' + str(i) + '/' + str(num_iter) + ']'
+            # benchmark_image_normalize = min_max_normalize(benchmark_image.squeeze().detach())
+            # lagrange_multiplier_normalize = min_max_normalize(lagrange_multiplier.squeeze().detach())
+            # print_image([benchmark_image_normalize, lagrange_multiplier_normalize], title=msg)
 
         if out_avg is None:
             out_avg = out.detach()
@@ -110,6 +110,8 @@ def func(args,
 
         # 当需要记录数据时才计算psnr
         if writer is not None:
+            out = torch.clamp(out, min=0, max=1)
+            out_avg = torch.clamp(out_avg, min=0, max=1)
             psnr_noisy = psnr(decrease_image.squeeze(), out.squeeze())
             psnr_gt = psnr(image, out.squeeze())
             psnr_gt_sm = psnr(image, out_avg.squeeze())
@@ -120,8 +122,7 @@ def func(args,
 
         if i % show_every == 0:
             msg = 'iteration times: [' + str(i) + '/' + str(num_iter) + ']'
-            print(msg)
-
+            # print(msg)
             # 只有当模式不为波段重组时才会输出图像
             if args.mode != 'band':
                 out_normalize = min_max_normalize(out.squeeze().detach())

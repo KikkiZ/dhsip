@@ -9,6 +9,7 @@ def raw_data_process(origin_path: str, target_path: str):
     :param target_path: 存储数据地址
     """
     image_data = skimage.io.imread(origin_path)  # 读取原始数据 -> ndarray
+    image_data = image_data.astype(float)
     image_tensor = torch.from_numpy(image_data)  # ndarray -> tensor
     print(image_tensor.shape)
     torch.save({'image': image_tensor}, target_path)

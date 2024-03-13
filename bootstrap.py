@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import deep_hsi_prior
 from models.band_selection import band_recombination, band_recovery
-from utils.data_utils import print_image, min_max_normalize
+from utils.data_utils import print_image, min_max_normalize, mpsnr, add_white_noise
 from utils.file_utils import read_data
 from utils.model_utils import model_build
 
@@ -39,8 +39,9 @@ if __name__ == '__main__':
     file_name = './data/data.pth'
     data_dict = read_data(file_name)
     image = data_dict['image'].cuda()
-    decrease_image = data_dict['noise_image'].cuda()
-    print_image([image, decrease_image], title='origin image')
+    # decrease_image = data_dict['image_noisy'].cuda()
+    decrease_image = add_white_noise(image, 75).cuda()
+    # print_image([image, decrease_image], title='origin image')
 
     if args.mode == 'base' or args.mode == 'red':
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
@@ -55,7 +56,7 @@ if __name__ == '__main__':
         print(group)
 
         date = datetime.datetime.now().strftime('%Y-%m-%d.%H-%M-%S')
-        log_dir = './logs/denoising_' + args.net + '_' + args.mode + '/'
+        log_dir = './logs/denoising_' + args.net + '_' + args.mode + '/' + date + '/'
 
         output = []
         output_avg = []
@@ -81,4 +82,9 @@ if __name__ == '__main__':
 
     output = min_max_normalize(output.detach())
     output_avg = min_max_normalize(output_avg.detach())
-    print_image([output, output_avg])
+    # print_image([output, output_avg])
+
+    with open('psnr.txt', 'a+') as file:
+        params = args.mode + '/' + args.net + '/' + str(args.group_size) + '/' + str(args.learning_rate) \
+                 + '/' + str(args.up_channel)
+        file.write(params + ': ' + str(mpsnr(image, output)) + ', ' + str(mpsnr(image, output_avg)) + '\n')

@@ -51,6 +51,8 @@ def add_white_noise(inputs: torch.Tensor, noise_level: int) -> torch.Tensor:
     :return: 返回添加了噪声的图像
     """
     white_noise = torch.randn(inputs.shape) * (noise_level / 255)
+    if inputs.is_cuda:
+        white_noise = white_noise.cuda()
 
     image_noise = inputs + white_noise
     image_noise = torch.clamp(image_noise, 0, 1)
@@ -131,20 +133,25 @@ def mpsnr(original: torch.Tensor, compressed: torch.Tensor) -> torch.Tensor:
 
 def print_image(images: list[torch.Tensor],
                 bands: list[int] = None,
-                title: str = None):
+                title: str = None,
+                size: tuple[int, int] = None):
     """ 输出一组任意长度的(高光谱)图像
 
     :param images: 需要输出的一组图像
     :param title: 图像的标题
     :param bands: 输出图像的波段
+    :param size: 输出图像的比例
     """
     if bands is None:
         bands = [56, 26, 16]
 
+    if size is None:
+        size = (5 if len(images) == 1 else 4 * len(images), 5)
+
     f, axs = plt.subplots(nrows=1,
                           ncols=len(images),
                           sharey=True,
-                          figsize=(5 if len(images) == 1 else 4 * len(images), 5))
+                          figsize=size)
 
     if title is not None:
         f.suptitle(title)

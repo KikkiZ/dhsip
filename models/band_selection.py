@@ -2,6 +2,7 @@ import math
 
 import numpy
 import torch
+from tqdm import tqdm
 
 
 def band_recombination(data: torch.Tensor,
@@ -39,8 +40,8 @@ def band_recombination(data: torch.Tensor,
 
         # 计算结构相似度
         similarity = []
-        for index, block in enumerate(blocks):
-            print('processing progress: [', index + 1, '/', len(blocks), ']')
+        for index, block in enumerate(tqdm(blocks)):
+            # print('processing progress: [', index + 1, '/', len(blocks), ']')
             info = structure_info(block)
             similarity.append(info)
 
